@@ -1,5 +1,3 @@
-// wget https://huggingface.co/giangndm/yolo11-onnx/resolve/main/yolo11n_640.onnx
-
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -43,9 +41,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Load model
     let session = Session::builder()
-        .with_optimization_level(OptLevel::All)
+        .with_optimization_level(OptLevel::None)
         .with_memory_pool(true)
-        .with_parallel_execution(true)
+        .with_parallel_execution(false)
         .with_profiling()
         .load("yolo11n_640.onnx".as_ref())?;
 
