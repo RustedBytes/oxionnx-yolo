@@ -1,4 +1,4 @@
-A test to run YOLO11 (nano) using OxiONNX.
+A test to run YOLO11 (nano) using OxiONNX. Prepared for the Rust CV community https://t.me/rust_cv 
 
 ```
 wget https://huggingface.co/giangndm/yolo11-onnx/resolve/main/yolo11n_640.onnx
