@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::path::Path;
+use std::time::Instant;
 
 use image::{DynamicImage, imageops::FilterType};
 use ndarray::{Array4, Axis};
@@ -73,7 +74,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     inputs.insert("images", Tensor::from_ndarray(input_tensor));
 
     // Run inference
+    let start_time = Instant::now();
     let outputs = session.run(&inputs)?;
+    let duration = start_time.elapsed();
+    println!("Inference took: {:.2?}", duration);
 
     println!("Inference complete!");
 
