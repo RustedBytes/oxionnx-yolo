@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use image::{DynamicImage, imageops::FilterType};
-use ndarray::Array4;
+use ndarray::{Array4, Axis};
 use oxionnx::{OptLevel, Session, Tensor};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -41,18 +41,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Load model
     let session = Session::builder()
-        .with_optimization_level(OptLevel::None)
+        .with_optimization_level(OptLevel::All)
         .with_memory_pool(true)
-        .with_parallel_execution(false)
+        .with_parallel_execution(true)
         .with_profiling()
-        .load("yolo11n_640.onnx".as_ref())?;
+        .load("yolov8n.onnx".as_ref())?;
 
     println!("Model loaded successfully!");
 
     println!("Inputs: {:?}", session.input_names());
     println!("Metadata: {:?}", session.metadata());
 
-    // Print the actual names and order of the model\\\'s outputs
+    // Print the actual names and order of the model's inputs
+    for (i, tensor_info) in session.input_info().iter().enumerate() {
+        println!(
+            "Input Index [{}]: Name = {}, Type = {:?}, Shape = {:?}, Dim Params = {:?}",
+            i, tensor_info.name, tensor_info.dtype, tensor_info.shape, tensor_info.dim_params
+        );
+    }
+
+    // Print the actual names and order of the model's outputs
     for (i, tensor_info) in session.output_info().iter().enumerate() {
         println!(
             "Output Index [{}]: Name = {}, Type = {:?}, Shape = {:?}, Dim Params = {:?}",
@@ -73,7 +81,56 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .get("output0")
         .ok_or("Output tensor \"output0\" not found")?;
 
-    println!("Output tensor: {:?}", output_tensor);
+    println!("Output tensor shape: {:?}", output_tensor.shape);
+
+    // Convert the oxionnx Tensor back to an ndarray for parsing
+    let output_ndarray = output_tensor.to_ndarray();
+
+    // Remove the batch dimension -> shape becomes [84, 8400]
+    let output_matrix = output_ndarray.index_axis(Axis(0), 0);
+
+    let num_elements = output_matrix.shape()[0]; // 84
+    let num_candidates = output_matrix.shape()[1]; // 8400
+    let num_classes = num_elements - 4; // 80
+
+    // Define confidence threshold
+    let conf_threshold = 0.80;
+
+    println!("Parsing bounding boxes (Threshold: {})...", conf_threshold);
+
+    for col in 0..num_candidates {
+        // Extract confidence scores for all 80 classes for this candidate box
+        let mut max_score = 0.0;
+        let mut class_id = 0;
+
+        for class_idx in 0..num_classes {
+            let score = output_matrix[[4 + class_idx, col]];
+            if score > max_score {
+                max_score = score;
+                class_id = class_idx;
+            }
+        }
+
+        // Filter out predictions below the defined confidence threshold
+        if max_score > conf_threshold {
+            // Extract bounding box geometry coordinates
+            let xc = output_matrix[[0, col]];
+            let yc = output_matrix[[1, col]];
+            let w = output_matrix[[2, col]];
+            let h = output_matrix[[3, col]];
+
+            // Convert from [x_center, y_center, width, height] to [x1, y1, x2, y2]
+            let x1 = xc - (w / 2.0);
+            let y1 = yc - (h / 2.0);
+            let x2 = xc + (w / 2.0);
+            let y2 = yc + (h / 2.0);
+
+            println!(
+                "Found Object -> Class ID: {}, Confidence: {:.4}, BBox: [x1: {:.1}, y1: {:.1}, x2: {:.1}, y2: {:.1}]",
+                class_id, max_score, x1, y1, x2, y2
+            );
+        }
+    }
 
     Ok(())
 }
