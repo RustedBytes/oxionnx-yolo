@@ -46,7 +46,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_memory_pool(true)
         .with_parallel_execution(true)
         .with_profiling()
-        .load("yolov8n.onnx".as_ref())?;
+        .load("yolo11n_640.onnx".as_ref())?;
 
     println!("Model loaded successfully!");
 
