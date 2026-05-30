@@ -16,7 +16,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let resized_img = img.resize_exact(640, 640, FilterType::Triangle);
 
     // Create a flat Vector for the normalized Float32 pixel values
-    let mut input_data = Vec::with_capacity(1 * 3 * 640 * 640);
+    let mut input_data = Vec::with_capacity(3 * 640 * 640);
 
     // Extract RGB values and normalize them
     let rgb_img = resized_img.to_rgb8();
@@ -74,8 +74,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .ok_or("Output tensor \"output0\" not found")?;
 
     println!("Output tensor: {:?}", output_tensor);
-
-    // You can add further processing here, e.g., NMS, drawing bounding boxes
 
     Ok(())
 }
