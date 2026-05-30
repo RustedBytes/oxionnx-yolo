@@ -1,7 +1,6 @@
+// wget https://huggingface.co/giangndm/yolo11-onnx/resolve/main/yolo11n_640.onnx
+
 use std::collections::HashMap;
-/**
- * wget https://huggingface.co/giangndm/yolo11-onnx/resolve/main/yolo11n_640.onnx
-*/
 use std::path::Path;
 
 use image::{DynamicImage, imageops::FilterType};
@@ -9,6 +8,8 @@ use ndarray::Array4;
 use oxionnx::{OptLevel, Session, Tensor};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tracing_subscriber::fmt::init();
+
     // Load image
     let img_path = Path::new("test.jpeg");
     let img: DynamicImage = image::open(img_path).expect("Failed to open image file");
@@ -27,6 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         for y in 0..640 {
             for x in 0..640 {
                 let pixel = rgb_img.get_pixel(x, y);
+                // Indexing is: (c * 640 * 640) + (y * 640) + x
                 let pixel_value = pixel[c] as f32 / 255.0;
                 input_data.push(pixel_value);
             }
@@ -52,13 +54,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Inputs: {:?}", session.input_names());
     println!("Metadata: {:?}", session.metadata());
 
+    // Print the actual names and order of the model\\\'s outputs
+    for (i, tensor_info) in session.output_info().iter().enumerate() {
+        println!(
+            "Output Index [{}]: Name = {}, Type = {:?}, Shape = {:?}, Dim Params = {:?}",
+            i, tensor_info.name, tensor_info.dtype, tensor_info.shape, tensor_info.dim_params
+        );
+    }
+
     // Prepare input
     let mut inputs = HashMap::new();
     inputs.insert("images", Tensor::from_ndarray(input_tensor));
 
     // Run inference
     let outputs = session.run(&inputs)?;
-    println!("{:?}", outputs);
+
+    println!("Inference complete!");
+
+    let output_tensor = outputs
+        .get("output0")
+        .ok_or("Output tensor \"output0\" not found")?;
+
+    println!("Output tensor: {:?}", output_tensor);
+
+    // You can add further processing here, e.g., NMS, drawing bounding boxes
 
     Ok(())
 }
